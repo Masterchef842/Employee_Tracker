@@ -15,14 +15,55 @@ const connection = mysql.createConnection({
 
 
 
+function getRolesArray() {
+    let roles = [];
 
-function getPrompt() {
+    connection.execute(
+        'SELECT * FROM roles',
+        function (err, results) {
+
+            if (err)
+                console.error(err);
+            else {
+                for (let i = 0; i < results.length; i++) {
+                    roles.push(results[i].id + " " + results[i].job_title)
+                }
+            }
 
 
+        }
+    )
+    return roles;
+}
+function getEmployeesArray() {
+
+    let employees = []
+
+    connection.execute(
+        'SELECT * FROM employees',
+        function (err, results) {
+
+            if (err)
+                console.error(err);
+            else {
+                for (let i = 0; i < results.length; i++) {
+                    employees.push(results[i].id + " " + results[i].first_name + " " + results[i].last_name)
+                }
+            }
+
+
+        }
+    )
+    return employees;
+}
+const getPrompt = async () => {
+
+    const employeesArray=getEmployeesArray()
+    const rolesArray=getRolesArray()
     inquirer.prompt([
         {
             type: "list",
-            text: "What would you like to do",
+            message: "What would you like to do",
             choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an Employee Role", "Fire an employee"],
             name: "toDo"
         }
@@ -59,7 +100,7 @@ function getPrompt() {
                 inquirer.prompt([
                     {
                         type: 'input',
-                        text: "Please enter the department name",
+                        message: "Please enter the department name",
                         name: "department_name"
                     }]).then((response) => {
                         connection.execute(
@@ -68,12 +109,169 @@ function getPrompt() {
                             function (err, results) {
                                 if (err)
                                     console.error(err);
-                                console.table(results);
+                                else
+                                    connection.execute(
+                                        'SELECT * FROM departments',
+                                        function (err, results) {
+                                            if (err)
+                                                console.error(err);
+                                            else
+                                                console.table(results);
+                                        }
+                                    )
+
                             }
                         )
                     })
-                
 
+
+                break;
+            case "Add a role":
+                let departments = [];
+                connection.execute(
+                    'SELECT * FROM departments',
+                    function (err, results) {
+
+                        if (err)
+                            console.error(err);
+                        else {
+                            for (let i = 0; i < results.length; i++) {
+                                departments.push(results[i].dept_name)
+                            }
+                        }
+
+
+                    }
+                )
+                inquirer.prompt([
+                    {
+                        type: 'input',
+                        message: "Please enter the role name",
+                        name: "role_name"
+                    },
+                    {
+                        type: 'input',
+                        message: "Please enter the salary",
+                        name: "role_salary"
+                    },
+                    {
+                        type: 'list',
+                        message: "Please choose a department",
+                        choices: departments,
+                        name: "role_dept"
+                    }
+
+                ]).then((response) => {
+                    connection.execute(
+                        'INSERT INTO employee_db.roles (job_title, salary, dept_id) VALUES (?,?,?)',
+                        [response.role_name, response.role_salary, response.role_dept],
+                        function (err, results) {
+                            if (err)
+                                console.error(err);
+                            else
+                                connection.execute(
+                                    'SELECT * FROM roles',
+                                    function (err, results) {
+                                        if (err)
+                                            console.error(err);
+                                        else
+                                            console.table(results);
+                                    }
+                                )
+
+                        }
+                    )
+                })
+
+
+                break;
+            case "Add an employee":
+                
+                inquirer.prompt([
+                    {
+                        type: 'input',
+                        message: "Please enter the employee first name",
+                        name: "first_name"
+                    },
+                    {
+                        type: 'input',
+                        message: "Please enter the employee last name",
+                        name: "last_name"
+                    },
+                    {
+                        type: 'list',
+                        message: "Please choose a role",
+                        choices: rolesArray,
+                        name: "employee_role"
+                    },
+                    {
+                        type: 'list',
+                        message: "Please choose a manager",
+                        choices: employeesArray,
+                        name: "employee_manager"
+                    }
+
+                ]).then((response) => {
+                    connection.execute(
+                        'INSERT INTO employee_db.employees (first_name, last_name, role_id, manager_id) VALUES (?,?,?,?)',
+                        [response.first_name, response.last_name, response.employee_role.split(" ")[0], +(response.employee_manager.split(" ")[0])],
+                        function (err, results) {
+                            if (err)
+                                console.error(err);
+                            else
+                                connection.execute(
+                                    'SELECT * FROM employees',
+                                    function (err, results) {
+                                        if (err)
+                                            console.error(err);
+                                        else
+                                            console.table(results);
+                                    }
+                                )
+
+                        }
+                    )
+                })
+                break;
+            case "Update an Employee Role":
+                inquirer.prompt([
+                    {
+                        type: 'list',
+                        message: "Please choose an employee",
+                        choices: employeesArray,
+                        name: "employee"
+                    },
+
+                    {
+                        type: 'list',
+                        message: "Please choose a role",
+                        choices: rolesArray,
+                        name: "employee_role"
+                    },
+
+                ]).then((response)=>{
+                    connection.execute(
+                        'UPDATE employee_db.employees SET role_id=? WHERE id=?',
+                        [(response.employee_role.split(" ")[0]),(response.employee.split(" ")[0])],
+                        function (err, results) {
+                            if (err)
+                                console.error(err);
+                            else
+                                connection.execute(
+                                    'SELECT * FROM employees JOIN roles ON roles.id=employees.role_id',
+                                    function (err, results) {
+                                        if (err)
+                                            console.error(err);
+                                        else
+                                            console.table(results);
+                                    }
+                                )
+
+                        }
+                    )
+                })
+                break;
+            default:
                 break;
 
         }
@@ -83,7 +281,7 @@ function getPrompt() {
     //     inquirer.prompt([
     //         {
     //             type: "list",
-    //             text: "What would you like to perform another operation?",
+    //             message: "Would you like to perform another operation?",
     //             choices: ["Y","N"],
     //             name: "continue"
     //         }
@@ -96,6 +294,8 @@ function getPrompt() {
 
 }
 getPrompt()
+
+
 // GIVEN a command-line application that accepts user input
 // WHEN I start the application
 // THEN I am presented with the following options: view all departments, view all roles, view all employees, add a department, add a role, add an employee, and update an employee role
