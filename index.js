@@ -1,23 +1,101 @@
-let inquirer=require("inquirer");
-const { default: Choice } = require("inquirer/lib/objects/choice");
+const inquirer = require("inquirer");
+require('dotenv').config();
+const cTable = require('console.table');
+const mysql = require('mysql2');
+const connection = mysql.createConnection({
+    host: 'localhost',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+
+});
+//const { default: Choice } = require("inquirer/lib/objects/choice");
 
 
 
 
 
 
-
-inquirer.prompt([
-    {
-        type: "list",
-        text: "What would you like to do",
-        choices: ["View all departments","View all roles","View all employees", "Add a department", "Add a role", "Add an employee", "Update an Employee Role", "Fire an employee"],
-        name: "toDo"
-    }
-
-]).then((response)=>{console.log(response.toDo)})
+function getPrompt() {
 
 
+    inquirer.prompt([
+        {
+            type: "list",
+            text: "What would you like to do",
+            choices: ["View all departments", "View all roles", "View all employees", "Add a department", "Add a role", "Add an employee", "Update an Employee Role", "Fire an employee"],
+            name: "toDo"
+        }
+
+    ]).then((response) => {
+        switch (response.toDo) {
+            case "View all departments":
+                connection.execute(
+                    'SELECT * FROM departments',
+                    function (err, results) {
+                        console.table(results);
+                    }
+                )
+                break;
+            case "View all roles":
+                connection.execute(
+                    'SELECT * FROM roles INNER JOIN departments ON departments.id=roles.dept_id',
+                    function (err, results) {
+                        console.table(results);
+                    }
+                )
+                break;
+            case "View all employees":
+                connection.execute(
+                    'SELECT employee.id, employee.first_name, employee.last_name, employee.role_id, roles.job_title, roles.salary,roles.dept_id, departments.dept_name, employee.manager_id, manager.first_name as manager_first, manager.last_name as manager_last FROM employees employee JOIN employees manager ON employee.manager_id = manager.id INNER JOIN roles ON roles.id=employee.role_id INNER JOIN departments ON departments.id=roles.dept_id',
+                    function (err, results) {
+                        if (err)
+                            console.error(err);
+                        console.table(results);
+                    }
+                )
+                break;
+            case "Add a department":
+                inquirer.prompt([
+                    {
+                        type: 'input',
+                        text: "Please enter the department name",
+                        name: "department_name"
+                    }]).then((response) => {
+                        connection.execute(
+                            'INSERT INTO employee_db.departments (dept_name) VALUES (?)',
+                            [response.department_name],
+                            function (err, results) {
+                                if (err)
+                                    console.error(err);
+                                console.table(results);
+                            }
+                        )
+                    })
+                
+
+                break;
+
+        }
+
+
+    })//.then(()=>{
+    //     inquirer.prompt([
+    //         {
+    //             type: "list",
+    //             text: "What would you like to perform another operation?",
+    //             choices: ["Y","N"],
+    //             name: "continue"
+    //         }
+    //     ]).then((response)=>{
+    //         if(response.continue==='Y')
+    //             getPrompt()
+    //         return;
+    //     })
+    // });
+
+}
+getPrompt()
 // GIVEN a command-line application that accepts user input
 // WHEN I start the application
 // THEN I am presented with the following options: view all departments, view all roles, view all employees, add a department, add a role, add an employee, and update an employee role
