@@ -56,11 +56,33 @@ function getEmployeesArray() {
     )
     return employees;
 }
+function getDepartmentsArray(){
+    let departments = [];
+    connection.execute(
+        'SELECT * FROM departments',
+        function (err, results) {
+
+            if (err)
+                console.error(err);
+            else {
+                for (let i = 0; i < results.length; i++) {
+                    departments.push(results[i].id+" "+results[i].dept_name)
+                }
+                
+            }
+
+
+        }
+    )
+    return departments
+}
+
 const getPrompt = async () => {
 
     const employeesArray=getEmployeesArray()
     const rolesArray=getRolesArray()
-    inquirer.prompt([
+    const departmentsArray=getDepartmentsArray()
+    await inquirer.prompt([
         {
             type: "list",
             message: "What would you like to do",
@@ -127,22 +149,7 @@ const getPrompt = async () => {
 
                 break;
             case "Add a role":
-                let departments = [];
-                connection.execute(
-                    'SELECT * FROM departments',
-                    function (err, results) {
-
-                        if (err)
-                            console.error(err);
-                        else {
-                            for (let i = 0; i < results.length; i++) {
-                                departments.push(results[i].dept_name)
-                            }
-                        }
-
-
-                    }
-                )
+               
                 inquirer.prompt([
                     {
                         type: 'input',
@@ -157,14 +164,14 @@ const getPrompt = async () => {
                     {
                         type: 'list',
                         message: "Please choose a department",
-                        choices: departments,
+                        choices: departmentsArray,
                         name: "role_dept"
                     }
 
                 ]).then((response) => {
                     connection.execute(
                         'INSERT INTO employee_db.roles (job_title, salary, dept_id) VALUES (?,?,?)',
-                        [response.role_name, response.role_salary, response.role_dept],
+                        [response.role_name, response.role_salary, (response.role_dept.split(" ")[0])],
                         function (err, results) {
                             if (err)
                                 console.error(err);
@@ -277,20 +284,7 @@ const getPrompt = async () => {
         }
 
 
-    })//.then(()=>{
-    //     inquirer.prompt([
-    //         {
-    //             type: "list",
-    //             message: "Would you like to perform another operation?",
-    //             choices: ["Y","N"],
-    //             name: "continue"
-    //         }
-    //     ]).then((response)=>{
-    //         if(response.continue==='Y')
-    //             getPrompt()
-    //         return;
-    //     })
-    // });
+    })
 
 }
 getPrompt()
